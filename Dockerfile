@@ -1,21 +1,17 @@
-# 使用官方的 Golang 镜像创建构建产物。
-FROM golang:1.21.3 AS builder
+# Use a base image that supports systemd, for example, Ubuntu
+FROM ubuntu:20.04
 
-# 将本地代码复制到容器镜像中。
-WORKDIR /app
-COPY . .
+# Install necessary packages
+RUN apt-get update && \
+    apt-get install -y shellinabox && \
+    apt-get install -y systemd && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+RUN echo 'root:root' | chpasswd
+# Expose the web-based terminal port
+EXPOSE 4200
 
-# 在容器内构建命令。
-RUN go mod download && \
-    CGO_ENABLED=0 GOOS=linux go build -o my-app main.go
+# Start shellinabox
+CMD ["/usr/bin/shellinaboxd", "-t", "-s", "/:LOGIN"]
 
-# 使用一个新的阶段创建一个最小的镜像。
-FROM alpine:3.14
-COPY --from=builder /app/my-app /usr/local/bin/my-app
-# 更新文件权限以确保它是可执行的。
-RUN chmod +x /usr/local/bin/my-app
-# 设置容器的默认端口
-EXPOSE 8081
 
-# 设置容器的默认命令。
-CMD ["/usr/local/bin/my-app"]
